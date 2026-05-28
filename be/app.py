@@ -22,6 +22,10 @@ def get_mock_image(filename):
 def get_parked_vehicles():
     return jsonify(parking_db.parking_db)
 
+@app.route('/api/parking/logs', methods=['GET'])
+def get_parking_logs():
+    return jsonify(parking_db.logs_history)
+
 @app.route('/api/settings', methods=['GET', 'POST'])
 def system_settings():
     if request.method == 'POST':
@@ -35,6 +39,7 @@ def system_settings():
         warning = data.get('warning_fee')
         if warning is not None:
             parking_db.warning_fee = int(warning)
+        parking_db.save_data() # Lưu lại cấu hình mới
         return jsonify({'message': 'Cập nhật cấu hình thành công!'})
     else:
         return jsonify({

@@ -22,7 +22,8 @@
                 <h2>SmartPark <span>ALPR</span></h2>
             </div>
             <nav class="menu-nav">
-                <a href="#" class="active" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a>
+                <a href="#" class="active" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều
+                    khiển</a>
                 <a href="#" data-page="logs"><i class="fa-solid fa-car-side"></i> Quản lý xe ra vào</a>
                 <a href="#" data-page="database"><i class="fa-solid fa-database"></i> Cơ sở dữ liệu xe</a>
                 <a href="#" data-page="settings"><i class="fa-solid fa-gears"></i> Cấu hình hệ thống</a>
@@ -88,7 +89,7 @@
                     <!-- Entrance Camera Card -->
                     <div class="camera-card">
                         <div class="card-header">
-                            <h3><i class="fa-solid fa-right-to-bracket text-green"></i> LÀN VÀO (ENTRY GATE)</h3>
+                            <h3><i class="fa-solid fa-right-to-bracket text-green"></i> LÀN VÀO </h3>
                             <div class="barrier-status">
                                 Barrier: <span id="barrier-entry-status" class="status-badge closed">Đóng</span>
                                 <div class="barrier-bar-container">
@@ -131,7 +132,7 @@
                     <!-- Exit Camera Card -->
                     <div class="camera-card">
                         <div class="card-header">
-                            <h3><i class="fa-solid fa-right-from-bracket text-orange"></i> LÀN RA (EXIT GATE)</h3>
+                            <h3><i class="fa-solid fa-right-from-bracket text-orange"></i> LÀN RA </h3>
                             <div class="barrier-status">
                                 Barrier: <span id="barrier-exit-status" class="status-badge closed">Đóng</span>
                                 <div class="barrier-bar-container">
@@ -211,7 +212,8 @@
                     <div class="card-header">
                         <h3><i class="fa-solid fa-square-parking"></i> Danh Sách Xe Đang Đỗ Trong Bãi</h3>
                         <div class="search-bar">
-                            <input type="text" id="db-search" placeholder="Tìm kiếm biển số..." onkeyup="searchDatabase()">
+                            <input type="text" id="db-search" placeholder="Tìm kiếm biển số..."
+                                onkeyup="searchDatabase()">
                             <i class="fa-solid fa-magnifying-glass"></i>
                         </div>
                     </div>
@@ -240,20 +242,31 @@
                     <div class="card-header">
                         <h3><i class="fa-solid fa-gears"></i> Cấu Hình Hệ Thống</h3>
                     </div>
-                    <div class="settings-form" style="margin-top: 20px; display: flex; flex-direction: column; gap: 20px;">
+                    <div class="settings-form"
+                        style="margin-top: 20px; display: flex; flex-direction: column; gap: 20px;">
                         <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: 500; font-size: 14px; color: var(--text-secondary);">Tổng số chỗ đỗ xe trong bãi:</label>
-                            <input type="number" id="settings-total-slots" value="50" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: #fff; outline: none; font-size: 14px;" min="1">
+                            <label style="font-weight: 500; font-size: 14px; color: var(--text-secondary);">Tổng số chỗ
+                                đỗ xe trong bãi:</label>
+                            <input type="number" id="settings-total-slots" value="50"
+                                style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: #fff; outline: none; font-size: 14px;"
+                                min="1">
                         </div>
                         <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: 500; font-size: 14px; color: var(--text-secondary);">Phí đỗ xe tiêu chuẩn (VND):</label>
-                            <input type="number" id="settings-standard-fee" value="5000" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: #fff; outline: none; font-size: 14px;" min="0">
+                            <label style="font-weight: 500; font-size: 14px; color: var(--text-secondary);">Phí đỗ xe
+                                tiêu chuẩn (VND):</label>
+                            <input type="number" id="settings-standard-fee" value="5000"
+                                style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: #fff; outline: none; font-size: 14px;"
+                                min="0">
                         </div>
                         <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-weight: 500; font-size: 14px; color: var(--text-secondary);">Phí đỗ xe không có thông tin vào (VND):</label>
-                            <input type="number" id="settings-warning-fee" value="30000" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: #fff; outline: none; font-size: 14px;" min="0">
+                            <label style="font-weight: 500; font-size: 14px; color: var(--text-secondary);">Phí đỗ xe
+                                không có thông tin vào (VND):</label>
+                            <input type="number" id="settings-warning-fee" value="30000"
+                                style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: #fff; outline: none; font-size: 14px;"
+                                min="0">
                         </div>
-                        <button class="btn btn-primary" onclick="saveSettings()" style="width: 100%; margin-top: 10px; padding: 14px; cursor: pointer;">
+                        <button class="btn btn-primary" onclick="saveSettings()"
+                            style="width: 100%; margin-top: 10px; padding: 14px; cursor: pointer;">
                             <i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình
                         </button>
                     </div>

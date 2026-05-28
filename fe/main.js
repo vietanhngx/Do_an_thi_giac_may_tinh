@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSlots();
     loadMockImages();
     setupNavigation();
+    loadLogsHistory();
 });
 
 // 1. CẤU HÌNH NAV TABS SWITCHING (SPA)
@@ -393,7 +394,7 @@ async function processGate(gate) {
             
             if (entryData.status === 'success') {
                 triggerBarrier('entry');
-                addLogToTable(nowStr, 'Vào bãi', plateText, plate.crop_img, nowStr, '--', '--', 'parked');
+                loadLogsHistory();
             } else {
                 alert(entryData.message);
             }
@@ -409,14 +410,7 @@ async function processGate(gate) {
             
             if (exitData.status === 'success' || exitData.status === 'warning') {
                 triggerBarrier('exit');
-                
-                const fee = exitData.fee || 5000;
-                dailyRevenue += fee;
-                document.getElementById('stat-revenue').innerText = `${dailyRevenue.toLocaleString('vi-VN')} VND`;
-                
-                const timeIn = exitData.time_in || '--';
-                const statusType = (exitData.status === 'warning') ? 'warning' : 'exited';
-                addLogToTable(nowStr, 'Ra bãi', plateText, plate.crop_img, timeIn, nowStr, `${fee.toLocaleString('vi-VN')}đ`, statusType);
+                loadLogsHistory();
                 
                 if (exitData.status === 'warning') {
                     alert("CẢNH BÁO: Xe ra không có thông tin lúc vào bãi. Đã tính phí mặc định phạt!");
@@ -473,37 +467,51 @@ function triggerBarrier(gate) {
 }
 
 // 5. QUẢN LÝ NHẬT KÝ LỊCH SỬ (LOGS)
-function addLogToTable(time, event, plate, cropImg, timeIn, timeOut, fee, status) {
-    const tbody = document.getElementById('logs-body');
-    const tr = document.createElement('tr');
-    
-    let eventBadgeClass = (event === 'Vào bãi') ? 'entry' : 'exit';
-    let statusClass = '';
-    let statusText = '';
-    
-    if (status === 'parked') {
-        statusClass = 'parked';
-        statusText = 'Đang đỗ';
-    } else if (status === 'exited') {
-        statusClass = 'exited';
-        statusText = 'Đã ra';
-    } else {
-        statusClass = 'warning';
-        statusText = 'Lỗi/Không vào';
+async function loadLogsHistory() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/parking/logs`);
+        const logs = await response.json();
+        
+        const tbody = document.getElementById('logs-body');
+        tbody.innerHTML = '';
+        
+        if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-secondary); padding: 20px;">Chưa có nhật ký ra vào nào.</td></tr>';
+            return;
+        }
+        
+        logs.forEach(log => {
+            let eventBadgeClass = (log.event === 'Vào bãi') ? 'entry' : 'exit';
+            let statusClass = '';
+            let statusText = '';
+            
+            if (log.status === 'parked') {
+                statusClass = 'parked';
+                statusText = 'Đang đỗ';
+            } else if (log.status === 'exited') {
+                statusClass = 'exited';
+                statusText = 'Đã ra';
+            } else {
+                statusClass = 'warning';
+                statusText = 'Lỗi/Không vào';
+            }
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${log.time.split(" ")[0]}</td>
+                <td><span class="log-event-badge ${eventBadgeClass}">${log.event}</span></td>
+                <td style="font-weight:600; letter-spacing:0.5px;">${log.plate}</td>
+                <td>${log.img_crop ? `<img class="img-crop-table" src="${log.img_crop}" alt="Plate">` : '--'}</td>
+                <td>${log.time_in}</td>
+                <td>${log.time_out}</td>
+                <td style="color:#10b981; font-weight:600;">${log.fee}</td>
+                <td><span class="log-status-badge ${statusClass}">${statusText}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("Lỗi khi tải nhật ký:", e);
     }
-    
-    tr.innerHTML = `
-        <td>${time.split(" ")[0]}</td>
-        <td><span class="log-event-badge ${eventBadgeClass}">${event}</span></td>
-        <td style="font-weight:600; letter-spacing:0.5px;">${plate}</td>
-        <td><img class="img-crop-table" src="${cropImg}" alt="Plate"></td>
-        <td>${timeIn}</td>
-        <td>${timeOut}</td>
-        <td style="color:#10b981; font-weight:600;">${fee}</td>
-        <td><span class="log-status-badge ${statusClass}">${statusText}</span></td>
-    `;
-    
-    tbody.insertBefore(tr, tbody.firstChild);
 }
 
 function searchLogs() {
@@ -572,17 +580,10 @@ async function manualCheckOut(plate) {
         
         alert(`Thao tác thành công!\n${data.message}\nPhí tính toán: ${data.fee.toLocaleString('vi-VN')} VND`);
         
-        // Cộng dồn doanh thu
-        dailyRevenue += data.fee;
-        document.getElementById('stat-revenue').innerText = `${dailyRevenue.toLocaleString('vi-VN')} VND`;
-        
-        // Thêm log vào bảng lịch sử
-        const nowStr = new Date().toLocaleTimeString('vi-VN') + " " + new Date().toLocaleDateString('vi-VN');
-        addLogToTable(nowStr, 'Ra bãi', plate, data.img_crop_in || '', data.time_in || '--', nowStr, `${data.fee.toLocaleString('vi-VN')}đ`, 'exited');
-        
-        // Cập nhật lại số liệu
+        // Cập nhật lại số liệu và lịch sử từ server
         updateSlots();
         loadDatabaseTable();
+        loadLogsHistory();
         
     } catch (e) {
         console.error("Lỗi xe ra thủ công:", e);
@@ -651,6 +652,10 @@ async function updateSlots() {
         document.getElementById('stat-total').innerText = data.total;
         document.getElementById('stat-available').innerText = data.available;
         document.getElementById('stat-occupied').innerText = data.occupied;
+        if (data.revenue !== undefined) {
+            dailyRevenue = data.revenue;
+            document.getElementById('stat-revenue').innerText = `${data.revenue.toLocaleString('vi-VN')} VND`;
+        }
     } catch (e) {
         console.error("Lỗi cập nhật chỗ trống:", e);
     }
