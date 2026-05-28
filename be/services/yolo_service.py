@@ -30,15 +30,42 @@ class YoloService:
                 raise FileNotFoundError(f"Không tìm thấy mô hình ocr tại {self.ocr_model_path}")
 
     def get_mock_images(self):
-        # Tìm ảnh test để phục vụ mô phỏng (trong thư mục dataset_detect ngoài thư mục web_demo)
-        test_path = '../../dataset_detect/test/images'
-        if not os.path.exists(test_path):
-            test_path = '../dataset_detect/test/images'
-        if not os.path.exists(test_path):
-            test_path = 'dataset_detect/test/images'
+        # Danh sách các thư mục chứa ảnh có thể có cục bộ
+        paths_to_check = [
+            'demo_images',                   # Thư mục demo_images nằm ngay trong be/
+            '../demo_images',                # Thư mục demo_images nằm ở gốc do-an-tgmt/
+            '../../demo_images',
+            '../../yolo_dataset_final/images',
+            '../../yolo_dataset_final/test/images',
+            '../../yolo_dataset/test/images',
+            '../../dataset_detect/test/images',
+            '../../dataset/test/images',
+            '../../dataset/images',
+            '../../yolo_dataset_bsx',
+            '../../Bsx',
+            '../../image',
+            '../../img',
+            '../yolo_dataset_final/images',
+            'yolo_dataset_final/images',
+        ]
         
+        test_path = None
+        for p in paths_to_check:
+            if os.path.exists(p):
+                # Kiểm tra xem có chứa ảnh không
+                img_check = []
+                for ext in ['*.jpg', '*.png', '*.jpeg', '*.JPG', '*.PNG', '*.JPEG']:
+                    img_check.extend(glob.glob(os.path.join(p, ext)))
+                if len(img_check) >= 3:
+                    test_path = p
+                    break
+        
+        if not test_path:
+            print("CẢNH BÁO: Không tìm thấy thư mục ảnh mẫu nào khả dụng.")
+            return []
+            
         img_files = []
-        for ext in ['*.jpg', '*.png', '*.jpeg']:
+        for ext in ['*.jpg', '*.png', '*.jpeg', '*.JPG', '*.PNG', '*.JPEG']:
             img_files.extend(glob.glob(os.path.join(test_path, ext)))
             
         if len(img_files) > 0:
