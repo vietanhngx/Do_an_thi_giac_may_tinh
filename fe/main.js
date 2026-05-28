@@ -21,6 +21,16 @@ let currentExitImg = null;  // Tên file ảnh đang chọn ở cổng ra
 // Doanh thu hôm nay
 let dailyRevenue = 0;
 
+// Trạng thái điều khiển Webcam
+let activeWebcamStreams = {
+    entry: null,
+    exit: null
+};
+let webcamAnimationIds = {
+    entry: null,
+    exit: null
+};
+
 // Khi trang load xong
 document.addEventListener('DOMContentLoaded', () => {
     updateSlots();
@@ -138,6 +148,10 @@ function drawPlaceholder(gate, text) {
 
 // 3. XỬ LÝ KHI CHỌN XE MÔ PHỎNG
 function triggerMockSelect(gate, filename) {
+    if (activeWebcamStreams[gate]) {
+        stopWebcam(gate);
+    }
+    
     if (!filename) {
         drawPlaceholder(gate, 'Mời chọn xe hoặc chụp ảnh...');
         if (gate === 'entry') currentEntryImg = null;
@@ -170,6 +184,94 @@ function triggerRandomMock(gate) {
     triggerMockSelect(gate, randFile);
 }
 
+// 3.5. ĐIỀU KHIỂN WEBCAM
+async function toggleWebcam(gate) {
+    const btn = document.getElementById(`btn-webcam-${gate}`);
+    const canvas = document.getElementById(`canvas-${gate}`);
+    const ctx = canvas.getContext('2d');
+    
+    // Nếu webcam đang bật -> Tắt
+    if (activeWebcamStreams[gate]) {
+        stopWebcam(gate);
+        return;
+    }
+    
+    // Tắt webcam ở cổng khác trước (tránh xung đột camera)
+    const otherGate = (gate === 'entry') ? 'exit' : 'entry';
+    if (activeWebcamStreams[otherGate]) {
+        stopWebcam(otherGate);
+    }
+    
+    // Reset dropdown mô phỏng
+    const select = document.getElementById(`select-mock-${gate}`);
+    if (select) select.value = "";
+    
+    if (gate === 'entry') currentEntryImg = null;
+    else currentExitImg = null;
+    
+    try {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang kết nối...';
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: "user"
+            },
+            audio: false
+        });
+        
+        activeWebcamStreams[gate] = stream;
+        
+        // Tạo thẻ video ẩn
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.autoplay = true;
+        video.playsInline = true;
+        
+        video.onloadedmetadata = () => {
+            video.play();
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            function renderFrame() {
+                if (!activeWebcamStreams[gate]) return;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                webcamAnimationIds[gate] = requestAnimationFrame(renderFrame);
+            }
+            renderFrame();
+            
+            btn.innerHTML = '<i class="fa-solid fa-video-slash"></i> Tắt Webcam';
+            btn.classList.add('active-webcam');
+        };
+        
+    } catch (err) {
+        console.error("Không thể mở Webcam:", err);
+        alert("Không thể truy cập Webcam. Vui lòng kiểm tra quyền camera của bạn.");
+        btn.innerHTML = `<i class="fa-solid fa-video"></i> Sử dụng Webcam`;
+        btn.classList.remove('active-webcam');
+    }
+}
+
+function stopWebcam(gate) {
+    const btn = document.getElementById(`btn-webcam-${gate}`);
+    if (activeWebcamStreams[gate]) {
+        activeWebcamStreams[gate].getTracks().forEach(track => track.stop());
+        activeWebcamStreams[gate] = null;
+    }
+    
+    if (webcamAnimationIds[gate]) {
+        cancelAnimationFrame(webcamAnimationIds[gate]);
+        webcamAnimationIds[gate] = null;
+    }
+    
+    if (btn) {
+        btn.innerHTML = `<i class="fa-solid fa-video"></i> Sử dụng Webcam`;
+        btn.classList.remove('active-webcam');
+    }
+    
+    drawPlaceholder(gate, 'Mời chọn xe hoặc bật webcam...');
+}
+
 // Vẽ ảnh từ server mock-image lên canvas
 function drawImageOnCanvas(gate, filename) {
     const canvas = document.getElementById(`canvas-${gate}`);
@@ -186,10 +288,11 @@ function drawImageOnCanvas(gate, filename) {
 
 // 4. GỬI ẢNH LÊN SERVER NHẬN DIỆN
 async function processGate(gate) {
+    const isWebcamActive = !!activeWebcamStreams[gate];
     const filename = (gate === 'entry') ? currentEntryImg : currentExitImg;
     
-    if (!filename) {
-        alert(`Vui lòng chọn ảnh mô phỏng xe trước cho làn ${gate === 'entry' ? 'Vào' : 'Ra'}.`);
+    if (!isWebcamActive && !filename) {
+        alert(`Vui lòng chọn ảnh mô phỏng xe hoặc bật webcam cho làn ${gate === 'entry' ? 'Vào' : 'Ra'}.`);
         return;
     }
     
@@ -225,7 +328,48 @@ async function processGate(gate) {
         
         // Cập nhật text OCR và vẽ bounding box lên Canvas
         document.getElementById(`ocr-${gate}-text`).innerText = plateText;
-        drawBoundingBox(gate, filename, plate.bbox, plateText);
+        
+        if (isWebcamActive) {
+            // Tạm dừng render webcam vẽ kết quả
+            if (webcamAnimationIds[gate]) {
+                cancelAnimationFrame(webcamAnimationIds[gate]);
+                webcamAnimationIds[gate] = null;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(plate.bbox[0], plate.bbox[1], plate.bbox[2] - plate.bbox[0], plate.bbox[3] - plate.bbox[1]);
+            
+            ctx.fillStyle = '#10b981';
+            ctx.font = 'bold 20px Inter, sans-serif';
+            const textWidth = ctx.measureText(plateText).width;
+            ctx.fillRect(plate.bbox[0], plate.bbox[1] - 30, textWidth + 10, 30);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(plateText, plate.bbox[0] + 5, plate.bbox[1] - 8);
+            
+            // Sau 4 giây, tự động bật lại webcam stream
+            setTimeout(() => {
+                if (activeWebcamStreams[gate] && !webcamAnimationIds[gate]) {
+                    const video = document.createElement('video');
+                    video.srcObject = activeWebcamStreams[gate];
+                    video.autoplay = true;
+                    video.playsInline = true;
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        function renderFrame() {
+                            if (!activeWebcamStreams[gate]) return;
+                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            webcamAnimationIds[gate] = requestAnimationFrame(renderFrame);
+                        }
+                        renderFrame();
+                    };
+                }
+            }, 4000);
+        } else {
+            drawBoundingBox(gate, filename, plate.bbox, plateText);
+        }
         
         // Hiển thị ảnh cắt biển số
         const cropImg = document.getElementById(`crop-${gate}-img`);
