@@ -3,6 +3,8 @@ import datetime
 class ParkingDatabase:
     def __init__(self, total_slots=50):
         self.total_slots = total_slots
+        self.standard_fee = 5000
+        self.warning_fee = 30000
         # Cấu trúc: { plate_text: { 'time_in': str, 'img_crop': base64_str } }
         self.parking_db = {}
         self.daily_revenue = 0
@@ -37,11 +39,11 @@ class ParkingDatabase:
             return {
                 'message': f'CẢNH BÁO: Xe biển {plate} không có thông tin đầu vào bãi!',
                 'status': 'warning',
-                'fee': 30000
+                'fee': self.warning_fee
             }, 200
             
         entry_info = self.parking_db.pop(plate)
-        fee = 5000  # Phí đỗ xe tiêu chuẩn
+        fee = self.standard_fee
         self.daily_revenue += fee
         
         return {

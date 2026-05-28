@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+import os
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from services.yolo_service import YoloService
 from database.parking_db import ParkingDatabase
@@ -9,6 +10,38 @@ CORS(app)  # Bật CORS cho phép kết nối từ Frontend ở nguồn khác (f
 @app.route('/')
 def index():
     return app.send_static_file('index.html')
+
+@app.route('/api/mock-image/<path:filename>')
+def get_mock_image(filename):
+    test_path = yolo_service.get_active_test_path()
+    if test_path and os.path.exists(os.path.join(test_path, filename)):
+        return send_from_directory(test_path, filename)
+    return jsonify({'error': 'Không tìm thấy ảnh.'}), 404
+
+@app.route('/api/parking/vehicles', methods=['GET'])
+def get_parked_vehicles():
+    return jsonify(parking_db.parking_db)
+
+@app.route('/api/settings', methods=['GET', 'POST'])
+def system_settings():
+    if request.method == 'POST':
+        data = request.get_json()
+        total = data.get('total_slots')
+        if total is not None:
+            parking_db.total_slots = int(total)
+        standard = data.get('standard_fee')
+        if standard is not None:
+            parking_db.standard_fee = int(standard)
+        warning = data.get('warning_fee')
+        if warning is not None:
+            parking_db.warning_fee = int(warning)
+        return jsonify({'message': 'Cập nhật cấu hình thành công!'})
+    else:
+        return jsonify({
+            'total_slots': parking_db.total_slots,
+            'standard_fee': parking_db.standard_fee,
+            'warning_fee': parking_db.warning_fee
+        })
 
 # Khởi tạo Services và Database
 yolo_service = YoloService()

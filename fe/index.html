@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Quản lý Bãi Đỗ Xe Thông Minh</title>
+    <title>Hệ thống Quản lý Bãi Đỗ Xe Thông Minh (ALPR)</title>
     <!-- Google Fonts Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome for Icons -->
@@ -22,10 +22,10 @@
                 <h2>SmartPark <span>ALPR</span></h2>
             </div>
             <nav class="menu-nav">
-                <a href="#" class="active"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a>
-                <a href="#"><i class="fa-solid fa-car-side"></i> Quản lý xe ra vào</a>
-                <a href="#"><i class="fa-solid fa-database"></i> Cơ sở dữ liệu xe</a>
-                <a href="#"><i class="fa-solid fa-gears"></i> Cấu hình hệ thống</a>
+                <a href="#" class="active" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a>
+                <a href="#" data-page="logs"><i class="fa-solid fa-car-side"></i> Quản lý xe ra vào</a>
+                <a href="#" data-page="database"><i class="fa-solid fa-database"></i> Cơ sở dữ liệu xe</a>
+                <a href="#" data-page="settings"><i class="fa-solid fa-gears"></i> Cấu hình hệ thống</a>
             </nav>
             <div class="user-profile">
                 <div class="avatar"><i class="fa-solid fa-user-tie"></i></div>
@@ -41,7 +41,7 @@
             <!-- Top Header bar -->
             <header class="top-header">
                 <div class="header-title">
-                    <h1>Giám Sát Bãi Xe Thời Gian Thực</h1>
+                    <h1 id="page-title">Giám Sát Bãi Xe Thời Gian Thực</h1>
                     <p>Ứng dụng công nghệ thị giác máy tính nhận dạng biển số xe (YOLOv11)</p>
                 </div>
                 <div class="system-time" id="live-time">
@@ -49,144 +49,210 @@
                 </div>
             </header>
 
-            <!-- Stats Overview Cards -->
-            <section class="stats-grid">
-                <div class="stat-card">
-                    <div class="icon-box blue"><i class="fa-solid fa-grip"></i></div>
-                    <div class="stat-info">
-                        <h3 id="stat-total">50</h3>
-                        <p>Tổng số chỗ đỗ</p>
+            <!-- Page 1: Dashboard (Real-time monitoring) -->
+            <div id="page-dashboard" class="page-section">
+                <!-- Stats Overview Cards -->
+                <section class="stats-grid">
+                    <div class="stat-card">
+                        <div class="icon-box blue"><i class="fa-solid fa-grip"></i></div>
+                        <div class="stat-info">
+                            <h3 id="stat-total">50</h3>
+                            <p>Tổng số chỗ đỗ</p>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-card">
-                    <div class="icon-box green"><i class="fa-solid fa-circle-check"></i></div>
-                    <div class="stat-info">
-                        <h3 id="stat-available">--</h3>
-                        <p>Số chỗ trống</p>
+                    <div class="stat-card">
+                        <div class="icon-box green"><i class="fa-solid fa-circle-check"></i></div>
+                        <div class="stat-info">
+                            <h3 id="stat-available">--</h3>
+                            <p>Số chỗ trống</p>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-card">
-                    <div class="icon-box orange"><i class="fa-solid fa-car-rear"></i></div>
-                    <div class="stat-info">
-                        <h3 id="stat-occupied">--</h3>
-                        <p>Xe đang trong bãi</p>
+                    <div class="stat-card">
+                        <div class="icon-box orange"><i class="fa-solid fa-car-rear"></i></div>
+                        <div class="stat-info">
+                            <h3 id="stat-occupied">--</h3>
+                            <p>Xe đang trong bãi</p>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-card">
-                    <div class="icon-box purple"><i class="fa-solid fa-coins"></i></div>
-                    <div class="stat-info">
-                        <h3 id="stat-revenue">0 VND</h3>
-                        <p>Doanh thu hôm nay</p>
+                    <div class="stat-card">
+                        <div class="icon-box purple"><i class="fa-solid fa-coins"></i></div>
+                        <div class="stat-info">
+                            <h3 id="stat-revenue">0 VND</h3>
+                            <p>Doanh thu hôm nay</p>
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            <!-- Camera Grid (Entrance & Exit) -->
-            <section class="cameras-grid">
-                <!-- Entrance Camera Card -->
-                <div class="camera-card">
+                <!-- Camera Grid (Entrance & Exit) -->
+                <section class="cameras-grid">
+                    <!-- Entrance Camera Card -->
+                    <div class="camera-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-right-to-bracket text-green"></i> LÀN VÀO (ENTRY GATE)</h3>
+                            <div class="barrier-status">
+                                Barrier: <span id="barrier-entry-status" class="status-badge closed">Đóng</span>
+                                <div class="barrier-bar-container">
+                                    <div id="barrier-entry-bar" class="barrier-bar horizontal"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="camera-stream-wrapper">
+                            <canvas id="canvas-entry" class="camera-canvas"></canvas>
+                            <div class="stream-overlay">
+                                <span class="rec-dot"></span> LIVE
+                            </div>
+                            <!-- Mock Images select list -->
+                            <div class="mock-images-panel">
+                                <span>Mô phỏng xe vào:</span>
+                                <select id="select-mock-entry" onchange="triggerMockSelect('entry', this.value)" style="background: rgba(11, 15, 25, 0.9); border: 1px solid var(--border-color); color: #fff; padding: 4px; border-radius: 4px; font-size: 11px; outline: none; width: 140px; cursor: pointer;">
+                                    <option value="">-- Chọn ảnh xe vào --</option>
+                                </select>
+                                <button onclick="triggerRandomMock('entry')" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-shuffle"></i> Ngẫu nhiên
+                                </button>
+                            </div>
+                        </div>
+                        <div class="gate-controls">
+                            <button class="btn btn-primary" onclick="processGate('entry')">
+                                <i class="fa-solid fa-camera"></i> Chụp ảnh & Nhận diện
+                            </button>
+                            <div class="ocr-result-box">
+                                <p>Kết quả nhận diện: <strong id="ocr-entry-text">???</strong></p>
+                                <div id="crop-entry-container" class="crop-container">
+                                    <img id="crop-entry-img" src="" alt="Cắt biển số" style="display:none;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Exit Camera Card -->
+                    <div class="camera-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-right-from-bracket text-orange"></i> LÀN RA (EXIT GATE)</h3>
+                            <div class="barrier-status">
+                                Barrier: <span id="barrier-exit-status" class="status-badge closed">Đóng</span>
+                                <div class="barrier-bar-container">
+                                    <div id="barrier-exit-bar" class="barrier-bar horizontal"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="camera-stream-wrapper">
+                            <canvas id="canvas-exit" class="camera-canvas"></canvas>
+                            <div class="stream-overlay">
+                                <span class="rec-dot"></span> LIVE
+                            </div>
+                            <!-- Mock Images select list -->
+                            <div class="mock-images-panel">
+                                <span>Mô phỏng xe ra:</span>
+                                <select id="select-mock-exit" onchange="triggerMockSelect('exit', this.value)" style="background: rgba(11, 15, 25, 0.9); border: 1px solid var(--border-color); color: #fff; padding: 4px; border-radius: 4px; font-size: 11px; outline: none; width: 140px; cursor: pointer;">
+                                    <option value="">-- Chọn ảnh xe ra --</option>
+                                </select>
+                                <button onclick="triggerRandomMock('exit')" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-shuffle"></i> Ngẫu nhiên
+                                </button>
+                            </div>
+                        </div>
+                        <div class="gate-controls">
+                            <button class="btn btn-orange" onclick="processGate('exit')">
+                                <i class="fa-solid fa-camera"></i> Chụp ảnh & Thanh toán
+                            </button>
+                            <div class="ocr-result-box">
+                                <p>Kết quả nhận diện: <strong id="ocr-exit-text">???</strong></p>
+                                <div id="crop-exit-container" class="crop-container">
+                                    <img id="crop-exit-img" src="" alt="Cắt biển số" style="display:none;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Page 2: Logs History (Moved here for better layout) -->
+            <div id="page-logs" class="page-section" style="display: none;">
+                <section class="logs-card">
                     <div class="card-header">
-                        <h3><i class="fa-solid fa-right-to-bracket text-green"></i> LÀN VÀO (ENTRY GATE)</h3>
-                        <div class="barrier-status">
-                            Barrier: <span id="barrier-entry-status" class="status-badge closed">Đóng</span>
-                            <div class="barrier-bar-container">
-                                <div id="barrier-entry-bar" class="barrier-bar horizontal"></div>
-                            </div>
+                        <h3><i class="fa-solid fa-list-check"></i> Nhật Ký Lịch Sử Ra Vào Bãi Đỗ</h3>
+                        <div class="search-bar">
+                            <input type="text" id="log-search" placeholder="Tìm kiếm biển số..." onkeyup="searchLogs()">
+                            <i class="fa-solid fa-magnifying-glass"></i>
                         </div>
                     </div>
-                    <div class="camera-stream-wrapper">
-                        <!-- Canvas overlays bounding box on image -->
-                        <canvas id="canvas-entry" class="camera-canvas"></canvas>
-                        <div class="stream-overlay">
-                            <span class="rec-dot"></span> LIVE
-                        </div>
-                        <!-- Thư viện ảnh test mô phỏng để người dùng click -->
-                        <div class="mock-images-panel">
-                            <span>Mô phỏng xe vào:</span>
-                            <button onclick="triggerMock('entry', 1)">Xe 1</button>
-                            <button onclick="triggerMock('entry', 2)">Xe 2</button>
-                            <button onclick="triggerMock('entry', 3)">Xe 3</button>
-                        </div>
+                    <div class="table-wrapper">
+                        <table class="logs-table" id="logs-table">
+                            <thead>
+                                <tr>
+                                    <th>Thời gian</th>
+                                    <th>Sự kiện</th>
+                                    <th>Biển số nhận dạng</th>
+                                    <th>Ảnh biển cắt</th>
+                                    <th>Thời gian Vào</th>
+                                    <th>Thời gian Ra</th>
+                                    <th>Phí đỗ xe</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logs-body">
+                                <!-- JS will inject logs here dynamically -->
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="gate-controls">
-                        <button class="btn btn-primary" onclick="processGate('entry')">
-                            <i class="fa-solid fa-camera"></i> Chụp ảnh & Nhận diện
-                        </button>
-                        <div class="ocr-result-box">
-                            <p>Kết quả nhận diện: <strong id="ocr-entry-text">???</strong></p>
-                            <div id="crop-entry-container" class="crop-container">
-                                <img id="crop-entry-img" src="" alt="Cắt biển số" style="display:none;">
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </section>
+            </div>
 
-                <!-- Exit Camera Card -->
-                <div class="camera-card">
+            <!-- Page 3: Currently Parked Vehicles Database -->
+            <div id="page-database" class="page-section" style="display: none;">
+                <section class="logs-card">
                     <div class="card-header">
-                        <h3><i class="fa-solid fa-right-from-bracket text-orange"></i> LÀN RA (EXIT GATE)</h3>
-                        <div class="barrier-status">
-                            Barrier: <span id="barrier-exit-status" class="status-badge closed">Đóng</span>
-                            <div class="barrier-bar-container">
-                                <div id="barrier-exit-bar" class="barrier-bar horizontal"></div>
-                            </div>
+                        <h3><i class="fa-solid fa-square-parking"></i> Danh Sách Xe Đang Đỗ Trong Bãi</h3>
+                        <div class="search-bar">
+                            <input type="text" id="db-search" placeholder="Tìm kiếm biển số..." onkeyup="searchDatabase()">
+                            <i class="fa-solid fa-magnifying-glass"></i>
                         </div>
                     </div>
-                    <div class="camera-stream-wrapper">
-                        <canvas id="canvas-exit" class="camera-canvas"></canvas>
-                        <div class="stream-overlay">
-                            <span class="rec-dot"></span> LIVE
-                        </div>
-                        <div class="mock-images-panel">
-                            <span>Mô phỏng xe ra:</span>
-                            <button onclick="triggerMock('exit', 1)">Xe 1</button>
-                            <button onclick="triggerMock('exit', 2)">Xe 2</button>
-                            <button onclick="triggerMock('exit', 3)">Xe 3</button>
-                        </div>
+                    <div class="table-wrapper">
+                        <table class="logs-table" id="db-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Biển số xe</th>
+                                    <th>Ảnh cắt biển</th>
+                                    <th>Thời gian vào bãi</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="db-body">
+                                <!-- JS will inject parked vehicles here -->
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="gate-controls">
-                        <button class="btn btn-orange" onclick="processGate('exit')">
-                            <i class="fa-solid fa-camera"></i> Chụp ảnh & Thanh toán
-                        </button>
-                        <div class="ocr-result-box">
-                            <p>Kết quả nhận diện: <strong id="ocr-exit-text">???</strong></p>
-                            <div id="crop-exit-container" class="crop-container">
-                                <img id="crop-exit-img" src="" alt="Cắt biển số" style="display:none;">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+                </section>
+            </div>
 
-            <!-- Logs History Table -->
-            <section class="logs-card">
-                <div class="card-header">
-                    <h3><i class="fa-solid fa-list-check"></i> Nhật Ký Lịch Sử Ra Vào Bãi Đỗ</h3>
-                    <div class="search-bar">
-                        <input type="text" id="log-search" placeholder="Tìm kiếm biển số..." onkeyup="searchLogs()">
-                        <i class="fa-solid fa-magnifying-glass"></i>
+            <!-- Page 4: Settings -->
+            <div id="page-settings" class="page-section" style="display: none;">
+                <div class="logs-card" style="max-width: 600px; margin: 0 auto; width: 100%;">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-gears"></i> Cấu Hình Hệ Thống</h3>
+                    </div>
+                    <div class="settings-form" style="margin-top: 20px; display: flex; flex-direction: column; gap: 20px;">
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-weight: 500; font-size: 14px; color: var(--text-secondary);">Tổng số chỗ đỗ xe trong bãi:</label>
+                            <input type="number" id="settings-total-slots" value="50" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: #fff; outline: none; font-size: 14px;" min="1">
+                        </div>
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-weight: 500; font-size: 14px; color: var(--text-secondary);">Phí đỗ xe tiêu chuẩn (VND):</label>
+                            <input type="number" id="settings-standard-fee" value="5000" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: #fff; outline: none; font-size: 14px;" min="0">
+                        </div>
+                        <div class="form-group" style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-weight: 500; font-size: 14px; color: var(--text-secondary);">Phí đỗ xe không có thông tin vào (VND):</label>
+                            <input type="number" id="settings-warning-fee" value="30000" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: #fff; outline: none; font-size: 14px;" min="0">
+                        </div>
+                        <button class="btn btn-primary" onclick="saveSettings()" style="width: 100%; margin-top: 10px; padding: 14px; cursor: pointer;">
+                            <i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình
+                        </button>
                     </div>
                 </div>
-                <div class="table-wrapper">
-                    <table class="logs-table" id="logs-table">
-                        <thead>
-                            <tr>
-                                <th>Thời gian</th>
-                                <th>Sự kiện</th>
-                                <th>Biển số nhận dạng</th>
-                                <th>Ảnh biển cắt</th>
-                                <th>Thời gian Vào</th>
-                                <th>Thời gian Ra</th>
-                                <th>Phí đỗ xe</th>
-                                <th>Trạng thái</th>
-                            </tr>
-                        </thead>
-                        <tbody id="logs-body">
-                            <!-- JS will inject logs here dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+            </div>
         </main>
     </div>
     <script src="main.js"></script>

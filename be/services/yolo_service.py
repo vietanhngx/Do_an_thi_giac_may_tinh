@@ -29,8 +29,7 @@ class YoloService:
             else:
                 raise FileNotFoundError(f"Không tìm thấy mô hình ocr tại {self.ocr_model_path}")
 
-    def get_mock_images(self):
-        # Danh sách các thư mục chứa ảnh có thể có cục bộ
+    def get_active_test_path(self):
         paths_to_check = [
             'demo_images',                   # Thư mục demo_images nằm ngay trong be/
             '../demo_images',                # Thư mục demo_images nằm ở gốc do-an-tgmt/
@@ -48,8 +47,6 @@ class YoloService:
             '../yolo_dataset_final/images',
             'yolo_dataset_final/images',
         ]
-        
-        test_path = None
         for p in paths_to_check:
             if os.path.exists(p):
                 # Kiểm tra xem có chứa ảnh không
@@ -57,9 +54,11 @@ class YoloService:
                 for ext in ['*.jpg', '*.png', '*.jpeg', '*.JPG', '*.PNG', '*.JPEG']:
                     img_check.extend(glob.glob(os.path.join(p, ext)))
                 if len(img_check) >= 3:
-                    test_path = p
-                    break
-        
+                    return p
+        return None
+
+    def get_mock_images(self):
+        test_path = self.get_active_test_path()
         if not test_path:
             print("CẢNH BÁO: Không tìm thấy thư mục ảnh mẫu nào khả dụng.")
             return []
@@ -68,18 +67,10 @@ class YoloService:
         for ext in ['*.jpg', '*.png', '*.jpeg', '*.JPG', '*.PNG', '*.JPEG']:
             img_files.extend(glob.glob(os.path.join(test_path, ext)))
             
-        if len(img_files) > 0:
-            picks = random.sample(img_files, min(6, len(img_files)))
-            res = []
-            for p in picks:
-                try:
-                    with open(p, "rb") as image_file:
-                        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-                    res.append(f"data:image/jpeg;base64,{encoded_string}")
-                except Exception as e:
-                    print(f"Lỗi đọc ảnh {p}:", e)
-            return res
-        return []
+        # Trả về danh sách tên tệp tin (chỉ lấy phần tên file để nhẹ API)
+        filenames = [os.path.basename(f) for f in img_files]
+        filenames.sort()
+        return filenames
 
     def process_image(self, base64_image):
         self.load_models()

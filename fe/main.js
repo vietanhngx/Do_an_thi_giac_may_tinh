@@ -13,49 +13,122 @@ function updateTime() {
 setInterval(updateTime, 1000);
 updateTime();
 
-// Lưu trữ ảnh mô phỏng tải từ server
+// Lưu trữ danh sách tên tệp tin ảnh mô phỏng
 let mockImagesList = [];
-let currentEntryImg = null;
-let currentExitImg = null;
+let currentEntryImg = null; // Tên file ảnh đang chọn ở cổng vào
+let currentExitImg = null;  // Tên file ảnh đang chọn ở cổng ra
 
-// Thống kê doanh thu giả lập
+// Doanh thu hôm nay
 let dailyRevenue = 0;
 
 // Khi trang load xong
 document.addEventListener('DOMContentLoaded', () => {
     updateSlots();
     loadMockImages();
+    setupNavigation();
 });
 
-// Tải danh sách ảnh mô phỏng từ server
+// 1. CẤU HÌNH NAV TABS SWITCHING (SPA)
+function setupNavigation() {
+    const menuLinks = document.querySelectorAll('.menu-nav a');
+    const pages = {
+        dashboard: document.getElementById('page-dashboard'),
+        logs: document.getElementById('page-logs'),
+        database: document.getElementById('page-database'),
+        settings: document.getElementById('page-settings')
+    };
+    
+    const pageTitles = {
+        dashboard: 'Giám Sát Bãi Xe Thời Gian Thực',
+        logs: 'Nhật Ký Xe Ra Vào Hệ Thống',
+        database: 'Cơ Sở Dữ Liệu Xe Trong Bãi',
+        settings: 'Cấu Hình Hệ Thống'
+    };
+
+    menuLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetPage = link.getAttribute('data-page');
+            
+            // Xóa class active cũ và thêm active mới
+            menuLinks.forEach(item => item.classList.remove('active'));
+            link.classList.add('active');
+            
+            // Ẩn tất cả các page
+            Object.values(pages).forEach(page => {
+                if (page) page.style.display = 'none';
+            });
+            
+            // Hiển thị page mục tiêu
+            if (pages[targetPage]) {
+                pages[targetPage].style.display = 'flex';
+            }
+            
+            // Cập nhật tiêu đề trang
+            document.getElementById('page-title').innerText = pageTitles[targetPage] || 'SmartPark ALPR';
+            
+            // Kích hoạt hàm load tương ứng
+            if (targetPage === 'database') {
+                loadDatabaseTable();
+            } else if (targetPage === 'settings') {
+                loadSettings();
+            }
+        });
+    });
+}
+
+// 2. TẢI DANH SÁCH MOCK IMAGES (FILENAMES)
 async function loadMockImages() {
     try {
         const response = await fetch(`${API_BASE_URL}/api/mock-images`);
         const data = await response.json();
+        
         if (data.images && data.images.length > 0) {
             mockImagesList = data.images;
             console.log(`Đã tải ${mockImagesList.length} ảnh mô phỏng thành công.`);
-            // Đặt ảnh mặc định lên canvas
+            
+            // Điền tên file vào hai thẻ select
+            populateDropdown('select-mock-entry');
+            populateDropdown('select-mock-exit');
+            
+            // Vẽ thông báo lên Canvas lúc đầu
             drawPlaceholder('entry', 'Mời chọn xe hoặc chụp ảnh...');
             drawPlaceholder('exit', 'Mời chọn xe hoặc chụp ảnh...');
+        } else {
+            drawPlaceholder('entry', 'Không tìm thấy thư mục ảnh mẫu...');
+            drawPlaceholder('exit', 'Không tìm thấy thư mục ảnh mẫu...');
         }
     } catch (e) {
         console.error("Không tải được ảnh mô phỏng:", e);
+        drawPlaceholder('entry', 'Không kết nối được server...');
+        drawPlaceholder('exit', 'Không kết nối được server...');
     }
 }
 
-// Vẽ thông báo lên canvas khi chưa có ảnh
+// Hàm điền tùy chọn vào dropdown
+function populateDropdown(selectId) {
+    const select = document.getElementById(selectId);
+    // Reset options
+    select.innerHTML = '<option value="">-- Chọn ảnh xe --</option>';
+    
+    mockImagesList.forEach((filename, index) => {
+        const opt = document.createElement('option');
+        opt.value = filename;
+        opt.innerText = `Xe ${index + 1} (${filename})`;
+        select.appendChild(opt);
+    });
+}
+
+// Vẽ thông báo placeholder lên canvas
 function drawPlaceholder(gate, text) {
     const canvas = document.getElementById(`canvas-${gate}`);
     const ctx = canvas.getContext('2d');
     canvas.width = 640;
     canvas.height = 400;
     
-    // Nền tối
     ctx.fillStyle = '#090d16';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Vẽ chữ thông báo
     ctx.fillStyle = '#9ca3af';
     ctx.font = '16px Inter, sans-serif';
     ctx.textAlign = 'center';
@@ -63,69 +136,71 @@ function drawPlaceholder(gate, text) {
     ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 }
 
-// Khi người dùng click nút chọn xe mô phỏng
-function triggerMock(gate, index) {
-    if (mockImagesList.length === 0) {
-        alert("Danh sách ảnh mô phỏng trống hoặc chưa được tải.");
+// 3. XỬ LÝ KHI CHỌN XE MÔ PHỎNG
+function triggerMockSelect(gate, filename) {
+    if (!filename) {
+        drawPlaceholder(gate, 'Mời chọn xe hoặc chụp ảnh...');
+        if (gate === 'entry') currentEntryImg = null;
+        else currentExitImg = null;
         return;
     }
     
-    // Chọn ảnh theo index (chuyển index 1-3 tương ứng với các ảnh trong list)
-    const imgData = mockImagesList[(index - 1) % mockImagesList.length];
-    
     if (gate === 'entry') {
-        currentEntryImg = imgData;
-        drawImageOnCanvas('entry', imgData);
+        currentEntryImg = filename;
+        drawImageOnCanvas('entry', filename);
         document.getElementById('ocr-entry-text').innerText = '???';
         document.getElementById('crop-entry-img').style.display = 'none';
     } else {
-        currentExitImg = imgData;
-        drawImageOnCanvas('exit', imgData);
+        currentExitImg = filename;
+        drawImageOnCanvas('exit', filename);
         document.getElementById('ocr-exit-text').innerText = '???';
         document.getElementById('crop-exit-img').style.display = 'none';
     }
 }
 
-// Vẽ ảnh lên canvas
-function drawImageOnCanvas(gate, src) {
+// Bấm nút ngẫu nhiên chọn xe
+function triggerRandomMock(gate) {
+    if (mockImagesList.length === 0) {
+        alert("Không có ảnh mẫu nào khả dụng.");
+        return;
+    }
+    const randFile = mockImagesList[Math.floor(Math.random() * mockImagesList.length)];
+    const select = document.getElementById(`select-mock-${gate}`);
+    select.value = randFile;
+    triggerMockSelect(gate, randFile);
+}
+
+// Vẽ ảnh từ server mock-image lên canvas
+function drawImageOnCanvas(gate, filename) {
     const canvas = document.getElementById(`canvas-${gate}`);
     const ctx = canvas.getContext('2d');
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
         ctx.drawImage(img, 0, 0);
     };
-    img.src = src;
+    img.src = `${API_BASE_URL}/api/mock-image/${filename}`;
 }
 
-// Cập nhật số lượng chỗ đỗ xe từ server
-async function updateSlots() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/slots`);
-        const data = await response.json();
-        document.getElementById('stat-total').innerText = data.total;
-        document.getElementById('stat-available').innerText = data.available;
-        document.getElementById('stat-occupied').innerText = data.occupied;
-    } catch (e) {
-        console.error("Lỗi cập nhật chỗ trống:", e);
-    }
-}
-
-// Chạy xử lý Nhận diện biển số khi bấm nút
+// 4. GỬI ẢNH LÊN SERVER NHẬN DIỆN
 async function processGate(gate) {
-    const imgData = (gate === 'entry') ? currentEntryImg : currentExitImg;
+    const filename = (gate === 'entry') ? currentEntryImg : currentExitImg;
     
-    if (!imgData) {
+    if (!filename) {
         alert(`Vui lòng chọn ảnh mô phỏng xe trước cho làn ${gate === 'entry' ? 'Vào' : 'Ra'}.`);
         return;
     }
     
-    // Hiển thị trạng thái đang xử lý
     document.getElementById(`ocr-${gate}-text`).innerText = 'Đang nhận diện...';
     
     try {
-        // 1. Gửi ảnh lên server để nhận diện bằng YOLO
+        // Chụp trực tiếp dữ liệu ảnh hiện tại trên canvas dưới dạng base64
+        const canvas = document.getElementById(`canvas-${gate}`);
+        const imgData = canvas.toDataURL('image/jpeg');
+        
+        // 1. Gửi base64 ảnh lên AI Server
         const response = await fetch(`${API_BASE_URL}/api/process-image`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -135,7 +210,7 @@ async function processGate(gate) {
         const data = await response.json();
         
         if (data.error) {
-            alert("Lỗi: " + data.error);
+            alert("Lỗi mô hình: " + data.error);
             document.getElementById(`ocr-${gate}-text`).innerText = 'LỖI MÔ HÌNH';
             return;
         }
@@ -145,20 +220,19 @@ async function processGate(gate) {
             return;
         }
         
-        // Lấy kết quả biển số đầu tiên tìm thấy
         const plate = data.plates[0];
         const plateText = plate.text || "BIEN_SO_MO";
         
         // Cập nhật text OCR và vẽ bounding box lên Canvas
         document.getElementById(`ocr-${gate}-text`).innerText = plateText;
-        drawBoundingBox(gate, plate.bbox, plateText);
+        drawBoundingBox(gate, filename, plate.bbox, plateText);
         
         // Hiển thị ảnh cắt biển số
         const cropImg = document.getElementById(`crop-${gate}-img`);
         cropImg.src = plate.crop_img;
         cropImg.style.display = 'block';
         
-        // 2. Gửi tiếp yêu cầu check-in hoặc check-out bãi đỗ xe
+        // 2. Gửi yêu cầu check-in / check-out bãi đỗ xe
         const nowStr = new Date().toLocaleTimeString('vi-VN') + " " + new Date().toLocaleDateString('vi-VN');
         
         if (gate === 'entry') {
@@ -173,7 +247,6 @@ async function processGate(gate) {
             });
             const entryData = await entryRes.json();
             
-            // Mở cổng barrier làn vào nếu thành công
             if (entryData.status === 'success') {
                 triggerBarrier('entry');
                 addLogToTable(nowStr, 'Vào bãi', plateText, plate.crop_img, nowStr, '--', '--', 'parked');
@@ -190,27 +263,23 @@ async function processGate(gate) {
             });
             const exitData = await exitRes.json();
             
-            // Mở cổng và tính tiền nếu thành công
             if (exitData.status === 'success' || exitData.status === 'warning') {
                 triggerBarrier('exit');
                 
-                // Tăng doanh thu
                 const fee = exitData.fee || 5000;
                 dailyRevenue += fee;
                 document.getElementById('stat-revenue').innerText = `${dailyRevenue.toLocaleString('vi-VN')} VND`;
                 
-                // Thêm lịch sử xe ra
                 const timeIn = exitData.time_in || '--';
                 const statusType = (exitData.status === 'warning') ? 'warning' : 'exited';
                 addLogToTable(nowStr, 'Ra bãi', plateText, plate.crop_img, timeIn, nowStr, `${fee.toLocaleString('vi-VN')}đ`, statusType);
                 
                 if (exitData.status === 'warning') {
-                    alert("CẢNH BÁO: Xe ra không có thông tin lúc vào. Đã tính phí mặc định 30,000 VND.");
+                    alert("CẢNH BÁO: Xe ra không có thông tin lúc vào bãi. Đã tính phí mặc định phạt!");
                 }
             }
         }
         
-        // Cập nhật lại số chỗ trống đỗ xe
         updateSlots();
         
     } catch (error) {
@@ -219,23 +288,19 @@ async function processGate(gate) {
     }
 }
 
-// Vẽ khung bounding box lên ảnh trên Canvas
-function drawBoundingBox(gate, bbox, text) {
+// Vẽ bounding box kèm nhãn biển số
+function drawBoundingBox(gate, filename, bbox, text) {
     const canvas = document.getElementById(`canvas-${gate}`);
     const ctx = canvas.getContext('2d');
-    
-    // Tải lại ảnh gốc lên canvas trước để tránh bị chồng nét cũ
-    const imgData = (gate === 'entry') ? currentEntryImg : currentExitImg;
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
         ctx.drawImage(img, 0, 0);
         
-        // Vẽ khung
         ctx.strokeStyle = '#10b981';
         ctx.lineWidth = 4;
         ctx.strokeRect(bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]);
         
-        // Vẽ nhãn chữ nền xanh lá
         ctx.fillStyle = '#10b981';
         ctx.font = 'bold 20px Inter, sans-serif';
         const textWidth = ctx.measureText(text).width;
@@ -244,20 +309,18 @@ function drawBoundingBox(gate, bbox, text) {
         ctx.fillStyle = '#ffffff';
         ctx.fillText(text, bbox[0] + 5, bbox[1] - 8);
     };
-    img.src = imgData;
+    img.src = `${API_BASE_URL}/api/mock-image/${filename}`;
 }
 
-// Hiệu ứng mở barrier cổng xoay trong 4 giây rồi đóng lại
+// Hiệu ứng mở/đóng barrier cổng
 function triggerBarrier(gate) {
     const bar = document.getElementById(`barrier-${gate}-bar`);
     const status = document.getElementById(`barrier-${gate}-status`);
     
-    // Trạng thái mở cổng
     bar.classList.add('open-gate');
     status.innerText = 'MỞ';
     status.className = 'status-badge open';
     
-    // Tự động đóng sau 4 giây
     setTimeout(() => {
         bar.classList.remove('open-gate');
         status.innerText = 'Đóng';
@@ -265,7 +328,7 @@ function triggerBarrier(gate) {
     }, 4000);
 }
 
-// Thêm dòng log lịch sử vào bảng
+// 5. QUẢN LÝ NHẬT KÝ LỊCH SỬ (LOGS)
 function addLogToTable(time, event, plate, cropImg, timeIn, timeOut, fee, status) {
     const tbody = document.getElementById('logs-body');
     const tr = document.createElement('tr');
@@ -282,7 +345,7 @@ function addLogToTable(time, event, plate, cropImg, timeIn, timeOut, fee, status
         statusText = 'Đã ra';
     } else {
         statusClass = 'warning';
-        statusText = 'Xe lạ/Lỗi';
+        statusText = 'Lỗi/Không vào';
     }
     
     tr.innerHTML = `
@@ -296,11 +359,9 @@ function addLogToTable(time, event, plate, cropImg, timeIn, timeOut, fee, status
         <td><span class="log-status-badge ${statusClass}">${statusText}</span></td>
     `;
     
-    // Chèn lên đầu bảng
     tbody.insertBefore(tr, tbody.firstChild);
 }
 
-// Tìm kiếm lịch sử biển số trong bảng
 function searchLogs() {
     const input = document.getElementById('log-search');
     const filter = input.value.toUpperCase();
@@ -308,14 +369,145 @@ function searchLogs() {
     const tr = table.getElementsByTagName('tr');
     
     for (let i = 1; i < tr.length; i++) {
-        const td = tr[i].getElementsByTagName('td')[2]; // Cột biển số xe
+        const td = tr[i].getElementsByTagName('td')[2];
         if (td) {
             const txtValue = td.textContent || td.innerText;
-            if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                tr[i].style.display = '';
-            } else {
-                tr[i].style.display = 'none';
-            }
+            tr[i].style.display = (txtValue.toUpperCase().indexOf(filter) > -1) ? '' : 'none';
         }
+    }
+}
+
+// 6. CƠ SỞ DỮ LIỆU XE TRONG BÃI (DATABASE TAB)
+async function loadDatabaseTable() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/parking/vehicles`);
+        const db = await response.json();
+        
+        const tbody = document.getElementById('db-body');
+        tbody.innerHTML = '';
+        
+        const plates = Object.keys(db);
+        if (plates.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">Bãi xe hiện đang trống.</td></tr>';
+            return;
+        }
+        
+        plates.forEach((plate, index) => {
+            const info = db[plate];
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${index + 1}</td>
+                <td style="font-weight:600; letter-spacing:0.5px;">${plate}</td>
+                <td><img class="img-crop-table" src="${info.img_crop}" alt="Plate"></td>
+                <td>${info.time_in}</td>
+                <td>
+                    <button class="btn btn-orange" style="padding: 6px 12px; font-size: 11px; margin: 0; display: inline-flex;" onclick="manualCheckOut('${plate}')">
+                        <i class="fa-solid fa-right-from-bracket"></i> Cho xe ra
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("Lỗi lấy cơ sở dữ liệu xe:", e);
+    }
+}
+
+async function manualCheckOut(plate) {
+    if (!confirm(`Bạn có chắc chắn muốn cho xe biển số ${plate} ra bãi đỗ?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/parking/exit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plate: plate })
+        });
+        const data = await response.json();
+        
+        alert(`Thao tác thành công!\n${data.message}\nPhí tính toán: ${data.fee.toLocaleString('vi-VN')} VND`);
+        
+        // Cộng dồn doanh thu
+        dailyRevenue += data.fee;
+        document.getElementById('stat-revenue').innerText = `${dailyRevenue.toLocaleString('vi-VN')} VND`;
+        
+        // Thêm log vào bảng lịch sử
+        const nowStr = new Date().toLocaleTimeString('vi-VN') + " " + new Date().toLocaleDateString('vi-VN');
+        addLogToTable(nowStr, 'Ra bãi', plate, data.img_crop_in || '', data.time_in || '--', nowStr, `${data.fee.toLocaleString('vi-VN')}đ`, 'exited');
+        
+        // Cập nhật lại số liệu
+        updateSlots();
+        loadDatabaseTable();
+        
+    } catch (e) {
+        console.error("Lỗi xe ra thủ công:", e);
+    }
+}
+
+function searchDatabase() {
+    const input = document.getElementById('db-search');
+    const filter = input.value.toUpperCase();
+    const table = document.getElementById('db-table');
+    const tr = table.getElementsByTagName('tr');
+    
+    for (let i = 1; i < tr.length; i++) {
+        const td = tr[i].getElementsByTagName('td')[1];
+        if (td) {
+            const txtValue = td.textContent || td.innerText;
+            tr[i].style.display = (txtValue.toUpperCase().indexOf(filter) > -1) ? '' : 'none';
+        }
+    }
+}
+
+// 7. CẤU HÌNH HỆ THỐNG (SETTINGS TAB)
+async function loadSettings() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/settings`);
+        const data = await response.json();
+        
+        document.getElementById('settings-total-slots').value = data.total_slots;
+        document.getElementById('settings-standard-fee').value = data.standard_fee;
+        document.getElementById('settings-warning-fee').value = data.warning_fee;
+    } catch (e) {
+        console.error("Lỗi lấy cấu hình:", e);
+    }
+}
+
+async function saveSettings() {
+    const totalSlots = document.getElementById('settings-total-slots').value;
+    const standardFee = document.getElementById('settings-standard-fee').value;
+    const warningFee = document.getElementById('settings-warning-fee').value;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                total_slots: totalSlots,
+                standard_fee: standardFee,
+                warning_fee: warningFee
+            })
+        });
+        const data = await response.json();
+        alert(data.message);
+        
+        updateSlots();
+    } catch (e) {
+        console.error("Lỗi lưu cấu hình:", e);
+        alert("Lỗi lưu cấu hình hệ thống.");
+    }
+}
+
+// 8. CẬP NHẬT TRẠNG THÁI CHỖ ĐỖ
+async function updateSlots() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/slots`);
+        const data = await response.json();
+        document.getElementById('stat-total').innerText = data.total;
+        document.getElementById('stat-available').innerText = data.available;
+        document.getElementById('stat-occupied').innerText = data.occupied;
+    } catch (e) {
+        console.error("Lỗi cập nhật chỗ trống:", e);
     }
 }

@@ -140,6 +140,14 @@ body {
     width: 100%;
 }
 
+.page-section {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+    width: 100%;
+}
+
 .top-header {
     display: flex;
     justify-content: space-between;
