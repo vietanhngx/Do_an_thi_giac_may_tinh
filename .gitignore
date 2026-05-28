@@ -1,0 +1,21 @@
+# Gitignore file for SmartPark ALPR web app
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# Virtual environment
+venv/
+.env
+
+# Large dataset files and backups (just in case they are stored locally)
+*.zip
+dataset_detect/
+dataset_ocr/
+final_dataset_detect/
+
+# IDE files
+.vscode/
+.idea/
+.vs/
