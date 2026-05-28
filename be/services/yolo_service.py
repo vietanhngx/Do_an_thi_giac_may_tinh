@@ -105,23 +105,32 @@ class YoloService:
                 char_boxes.append((cx1, cy1, cx2, cy2))
                 char_classes.append(self.ocr_classes.get(c_cls, str(c_cls)))
                 
-            # Sắp xếp ký tự
-            plate_text = ""
+            # Sắp xếp ký tự và định dạng theo dòng
+            formatted_text = ""
             if len(char_boxes) > 0:
                 items = list(zip(char_boxes, char_classes))
                 if p_type == 'BSD':
                     items.sort(key=lambda x: x[0][0])
-                    plate_text = "".join([x[1] for x in items])
+                    raw_text = "".join([x[1] for x in items])
+                    formatted_text = self.format_1line_plate(raw_text)
                 else:
+                    # Tách thành 2 dòng dựa trên tọa độ Y trung bình
                     y_centers = [(b[1] + b[3]) / 2 for b, _ in items]
                     y_mean = sum(y_centers) / len(y_centers)
                     
                     line1 = [x for x in items if (x[0][1] + x[0][3])/2 < y_mean]
                     line2 = [x for x in items if (x[0][1] + x[0][3])/2 >= y_mean]
                     
+                    # Sắp xếp từng dòng từ trái qua phải
                     line1.sort(key=lambda x: x[0][0])
                     line2.sort(key=lambda x: x[0][0])
-                    plate_text = "".join([x[1] for x in line1]) + "".join([x[1] for x in line2])
+                    
+                    line1_text = "".join([x[1] for x in line1])
+                    line2_text = "".join([x[1] for x in line2])
+                    
+                    formatted_text = self.format_2line_plate(line1_text, line2_text)
+            else:
+                formatted_text = "BIEN_SO_MO"
             
             # Mã hóa ảnh crop
             _, buffer = cv2.imencode('.jpg', crop)
@@ -130,8 +139,93 @@ class YoloService:
             plates_found.append({
                 'bbox': [x1, y1, x2, y2],
                 'type': p_type,
-                'text': plate_text,
+                'text': formatted_text,
                 'crop_img': f"data:image/jpeg;base64,{crop_base64}"
             })
             
         return plates_found
+
+    def format_digits(self, digits):
+        if len(digits) == 5:
+            return f"{digits[:3]}.{digits[3:]}"
+        return digits
+
+    def format_1line_plate(self, plate_text):
+        if not plate_text:
+            return ""
+            
+        import re
+        clean_text = re.sub(r'[^A-Z0-9]', '', plate_text.upper())
+        
+        # Biển xe quân sự / đặc biệt (ví dụ: AA1234, KP123.45)
+        if clean_text and clean_text[0].isalpha():
+            match_mil = re.match(r'^([A-Z]{2})(\d{4,5})$', clean_text)
+            if match_mil:
+                letters = match_mil.group(1)
+                digits = match_mil.group(2)
+                return f"{letters}-{self.format_digits(digits)}"
+            return clean_text
+            
+        # Biển số phổ thông (ví dụ: 51G-006.72, 29A-1234, 59-U1 598.97)
+        if len(clean_text) >= 7 and clean_text[:2].isdigit():
+            prov = clean_text[:2]
+            rest = clean_text[2:]
+            
+            # Tách phần số ở cuối (5 chữ số hoặc 4 chữ số)
+            if rest[-5:].isdigit():
+                series = rest[:-5]
+                digits = rest[-5:]
+            elif rest[-4:].isdigit():
+                series = rest[:-4]
+                digits = rest[-4:]
+            else:
+                return clean_text
+                
+            formatted_digits = self.format_digits(digits)
+            
+            if not series:
+                return f"{prov}-{formatted_digits}"
+                
+            # Kiểm tra xem ký tự cuối cùng của series có phải là số (VD: U1, A3) -> Biển xe máy
+            is_mc = series[-1].isdigit()
+            
+            if is_mc:
+                return f"{prov}-{series} {formatted_digits}"
+            else:
+                return f"{prov}{series}-{formatted_digits}"
+                
+        return clean_text
+
+    def format_2line_plate(self, line1_text, line2_text):
+        if not line1_text:
+            return line2_text
+            
+        import re
+        clean_line1 = re.sub(r'[^A-Z0-9]', '', line1_text.upper())
+        clean_line2 = re.sub(r'[^A-Z0-9]', '', line2_text.upper())
+        
+        if len(clean_line1) < 2:
+            return clean_line1 + clean_line2
+            
+        # Tách tỉnh, series và các chữ số dựa vào 2 dòng của biển vuông
+        prov = clean_line1[:2]
+        series = clean_line1[2:]
+        digits = clean_line2
+        
+        formatted_digits = self.format_digits(digits)
+        
+        if not series:
+            return f"{prov}-{formatted_digits}"
+            
+        # Kiểm tra xem ký tự cuối cùng của series ở dòng 1 có phải là số (VD: U1, B9) -> Biển xe máy
+        is_mc = False
+        if series[-1].isdigit():
+            is_mc = True
+            
+        if is_mc:
+            # Xe máy: 17-A3 9477 hoặc 59-U1 598.97
+            return f"{prov}-{series} {formatted_digits}"
+        else:
+            # Ô tô: 17A-394.77 hoặc 29C-123.45
+            return f"{prov}{series}-{formatted_digits}"
+
