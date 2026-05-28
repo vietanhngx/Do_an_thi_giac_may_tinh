@@ -339,7 +339,7 @@ body {
 
 .camera-stream-wrapper {
     position: relative;
-    height: 195px;
+    height: 250px;
     background-color: #05070e;
     border-radius: 8px;
     overflow: hidden;
@@ -352,7 +352,7 @@ body {
 .camera-canvas {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .stream-overlay {
