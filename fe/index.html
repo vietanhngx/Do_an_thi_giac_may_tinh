@@ -101,16 +101,16 @@
                             <div class="stream-overlay">
                                 <span class="rec-dot"></span> LIVE
                             </div>
-                            <!-- Mock Images select list -->
-                            <div class="mock-images-panel">
-                                <span>Mô phỏng xe vào:</span>
-                                <select id="select-mock-entry" onchange="triggerMockSelect('entry', this.value)" style="background: rgba(11, 15, 25, 0.9); border: 1px solid var(--border-color); color: #fff; padding: 4px; border-radius: 4px; font-size: 11px; outline: none; width: 140px; cursor: pointer;">
-                                    <option value="">-- Chọn ảnh xe vào --</option>
-                                </select>
-                                <button onclick="triggerRandomMock('entry')" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-                                    <i class="fa-solid fa-shuffle"></i> Ngẫu nhiên
-                                </button>
-                            </div>
+                        </div>
+                        <!-- Mock Images select list -->
+                        <div class="mock-images-panel">
+                            <span>Mô phỏng xe vào:</span>
+                            <select id="select-mock-entry" onchange="triggerMockSelect('entry', this.value)">
+                                <option value="">-- Chọn ảnh xe vào --</option>
+                            </select>
+                            <button onclick="triggerRandomMock('entry')">
+                                <i class="fa-solid fa-shuffle"></i> Ngẫu nhiên
+                            </button>
                         </div>
                         <div class="gate-controls">
                             <button class="btn btn-primary" onclick="processGate('entry')">
@@ -141,16 +141,16 @@
                             <div class="stream-overlay">
                                 <span class="rec-dot"></span> LIVE
                             </div>
-                            <!-- Mock Images select list -->
-                            <div class="mock-images-panel">
-                                <span>Mô phỏng xe ra:</span>
-                                <select id="select-mock-exit" onchange="triggerMockSelect('exit', this.value)" style="background: rgba(11, 15, 25, 0.9); border: 1px solid var(--border-color); color: #fff; padding: 4px; border-radius: 4px; font-size: 11px; outline: none; width: 140px; cursor: pointer;">
-                                    <option value="">-- Chọn ảnh xe ra --</option>
-                                </select>
-                                <button onclick="triggerRandomMock('exit')" style="background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-                                    <i class="fa-solid fa-shuffle"></i> Ngẫu nhiên
-                                </button>
-                            </div>
+                        </div>
+                        <!-- Mock Images select list -->
+                        <div class="mock-images-panel">
+                            <span>Mô phỏng xe ra:</span>
+                            <select id="select-mock-exit" onchange="triggerMockSelect('exit', this.value)">
+                                <option value="">-- Chọn ảnh xe ra --</option>
+                            </select>
+                            <button onclick="triggerRandomMock('exit')">
+                                <i class="fa-solid fa-shuffle"></i> Ngẫu nhiên
+                            </button>
                         </div>
                         <div class="gate-controls">
                             <button class="btn btn-orange" onclick="processGate('exit')">
